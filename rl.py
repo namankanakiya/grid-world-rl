@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 def plot_convergence(utility_grids, policy_grids):
     fig, ax1 = plt.subplots()
+    ax1.set_xlabel("# Iterations")
     ax2 = ax1.twinx()
     utility_ssd = np.sum(np.square(np.diff(utility_grids)), axis=(0, 1))
     ax1.plot(utility_ssd, 'b.-')
@@ -36,6 +37,12 @@ if __name__ == '__main__':
     terminal_mask[goal] = True
     terminal_mask[trap] = True
 
+    goal_mask = np.zeros_like(reward_grid, dtype=np.bool)
+    goal_mask[goal] = True
+
+    avoid_mask = np.zeros_like(reward_grid, dtype=np.bool)
+    avoid_mask[trap] = True
+
     obstacle_mask = np.zeros_like(reward_grid, dtype=np.bool)
     obstacle_mask[1, 1] = True
 
@@ -47,7 +54,9 @@ if __name__ == '__main__':
                           (0, 0.8),
                           (1, 0.1),
                       ],
-                      no_action_probability=0.0)
+                      no_action_probability=0.0,
+                      goal_mask=goal_mask,
+                      avoid_mask=avoid_mask)
 
     mdp_solvers = {'Value Iteration': gw.run_value_iterations,
                    'Policy Iteration': gw.run_policy_iterations}

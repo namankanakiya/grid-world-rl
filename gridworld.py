@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2
 
 
 class GridWorldMDP:
@@ -19,11 +18,15 @@ class GridWorldMDP:
                  terminal_mask,
                  obstacle_mask,
                  action_probabilities,
-                 no_action_probability):
+                 no_action_probability,
+                 goal_mask,
+                 avoid_mask):
 
         self._reward_grid = reward_grid
         self._terminal_mask = terminal_mask
         self._obstacle_mask = obstacle_mask
+        self._goal_mask = goal_mask
+        self._avoid_mask = avoid_mask
         self._T = self._create_transition_matrix(
             action_probabilities,
             no_action_probability,
@@ -185,22 +188,24 @@ class GridWorldMDP:
         utility_normalized = (utility_grid - utility_grid.min()) / \
                              (utility_grid.max() - utility_grid.min())
 
-        utility_normalized = (255*utility_normalized).astype(np.uint8)
-
-        utility_rgb = cv2.applyColorMap(utility_normalized, cv2.COLORMAP_JET)
-        for i in range(3):
-            channel = utility_rgb[:, :, i]
-            channel[self._obstacle_mask] = 0
-
-        plt.imshow(utility_rgb[:, :, ::-1], interpolation='none')
+        plt.imshow(utility_normalized, interpolation='none', cmap="Dark2")
+        plt.colorbar()
 
         for i, marker in enumerate(markers):
             y, x = np.where((policy_grid == i) & np.logical_not(no_action_mask))
             plt.plot(x, y, marker, ms=marker_size, mew=marker_edge_width,
                      color=marker_fill_color)
 
-        y, x = np.where(self._terminal_mask)
+        y, x = np.where(self._goal_mask)
         plt.plot(x, y, 'o', ms=marker_size, mew=marker_edge_width,
+                 color=marker_fill_color)
+
+        y, x = np.where(self._avoid_mask)
+        plt.plot(x, y, 'x', ms=marker_size, mew=marker_edge_width,
+                 color=marker_fill_color)
+
+        y, x = np.where(self._obstacle_mask)
+        plt.plot(x, y, '|', ms=marker_size, mew=marker_edge_width,
                  color=marker_fill_color)
 
         tick_step_options = np.array([1, 2, 5, 10, 20, 50, 100])
