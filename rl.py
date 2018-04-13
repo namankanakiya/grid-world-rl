@@ -59,11 +59,14 @@ if __name__ == '__main__':
                       avoid_mask=avoid_mask)
 
     mdp_solvers = {'Value Iteration': gw.run_value_iterations,
-                   'Policy Iteration': gw.run_policy_iterations}
+                   'Policy Iteration': gw.run_policy_iterations,
+                   'Value Find' : gw.run_value_find,
+                   'Policy Find' : gw.run_policy_find}
 
     for solver_name, solver_fn in mdp_solvers.items():
         print('Final result of {}:'.format(solver_name))
-        policy_grids, utility_grids = solver_fn(iterations=25, discount=0.5)
+        policy_grids, utility_grids, i = solver_fn(iterations=25, discount=0.9)
+        print(i)
         print(policy_grids[:, :, -1])
         print(utility_grids[:, :, -1])
         plt.figure()

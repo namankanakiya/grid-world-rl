@@ -45,16 +45,44 @@ class GridWorldMDP:
     def reward_grid(self):
         return self._reward_grid
 
+    def run_val_choice(self, discount=1.0, run_iterations=False, iterations=10):
+        if run_iterations:
+            return self.run_value_iterations(discount, iterations)
+        else:
+            return self.run_value_find(discount)
+
+    def run_value_find(self, discount=1.0, iterations=1000):
+        iterations = 100
+        utility_grids, policy_grids = self._init_utility_policy_storage(iterations)
+
+        utility_grid = np.zeros_like(self._reward_grid)
+        for i in range(iterations):
+            utility_grid = self._value_iteration(utility_grid=utility_grid, discount=discount)
+            policy_grid = self.best_policy(utility_grid)
+            policy_grids[:, :, i] = policy_grid
+            utility_grids[:, :, i] = utility_grid
+            if i > 1:
+                policy_diff = np.sum(np.square(policy_grid - policy_grids[:, :, i-1]))
+                if policy_diff < 0.00001:
+                    return policy_grids[:, :, 0:i+1], utility_grids[:, :, 0:i+1], i
+        return policy_grids, utility_grids, iterations
+
     def run_value_iterations(self, discount=1.0,
                              iterations=10):
         utility_grids, policy_grids = self._init_utility_policy_storage(iterations)
 
         utility_grid = np.zeros_like(self._reward_grid)
         for i in range(iterations):
-            utility_grid = self._value_iteration(utility_grid=utility_grid)
+            utility_grid = self._value_iteration(utility_grid=utility_grid, discount=discount)
             policy_grids[:, :, i] = self.best_policy(utility_grid)
             utility_grids[:, :, i] = utility_grid
-        return policy_grids, utility_grids
+        return policy_grids, utility_grids, iterations
+
+    def run_policy_choice(self, discount=1.0, run_iterations=False, iterations=10):
+        if run_iterations:
+            return self.run_policy_iterations(discount, iterations)
+        else:
+            return self.run_policy_find(discount)
 
     def run_policy_iterations(self, discount=1.0,
                               iterations=10):
@@ -67,11 +95,34 @@ class GridWorldMDP:
         for i in range(iterations):
             policy_grid, utility_grid = self._policy_iteration(
                 policy_grid=policy_grid,
-                utility_grid=utility_grid
+                utility_grid=utility_grid,
+                discount=discount
             )
             policy_grids[:, :, i] = policy_grid
             utility_grids[:, :, i] = utility_grid
-        return policy_grids, utility_grids
+        return policy_grids, utility_grids, iterations
+
+    def run_policy_find(self, discount=1.0, iterations=1000):
+        iterations = 100
+        utility_grids, policy_grids = self._init_utility_policy_storage(iterations)
+
+        policy_grid = np.random.randint(0, self._num_actions,
+                                        self.shape)
+        utility_grid = self._reward_grid.copy()
+
+        for i in range(iterations):
+            policy_grid, utility_grid = self._policy_iteration(
+                policy_grid=policy_grid,
+                utility_grid=utility_grid,
+                discount=discount
+            )
+            policy_grids[:, :, i] = policy_grid
+            utility_grids[:, :, i] = utility_grid
+            if i > 1:
+                policy_diff = np.sum(np.square(policy_grid - policy_grids[:, :, i - 1]))
+                if policy_diff <= 0.00001:
+                    return policy_grids[:, :, 0:i+1], utility_grids[:, :, 0:i+1], i
+        return policy_grids, utility_grids, iterations
 
     def generate_experience(self, current_state_idx, action_idx):
         sr, sc = self.grid_indices_to_coordinates(current_state_idx)
