@@ -252,11 +252,11 @@ class GridWorldMDP:
                  color=marker_fill_color)
 
         y, x = np.where(self._avoid_mask)
-        plt.plot(x, y, 'x', ms=marker_size, mew=marker_edge_width,
+        plt.plot(x, y, '*', ms=marker_size, mew=marker_edge_width,
                  color=marker_fill_color)
 
         y, x = np.where(self._obstacle_mask)
-        plt.plot(x, y, '|', ms=marker_size, mew=marker_edge_width,
+        plt.plot(x, y, 'P', ms=marker_size, mew=marker_edge_width,
                  color=marker_fill_color)
 
         tick_step_options = np.array([1, 2, 5, 10, 20, 50, 100])
