@@ -30,7 +30,7 @@ def create_big_maze():
     obstacles = []
     traps = []
     default_reward = -0.1
-    goal_reward = 1
+    goal_reward = 5
     trap_reward = -1
     reward_grid = np.zeros(shape) + default_reward
     terminal_mask = np.zeros_like(reward_grid, dtype=np.bool)
@@ -117,15 +117,16 @@ def print_spaces():
 if __name__ == '__main__':
 
     for i in range(2):
-        print_spaces()
-        print("Generating Maze")
-        reward_grid, terminal_mask, goal_mask, avoid_mask, obstacle_mask = generate_maze(i)
-
+        oldi = i
         if i == 0:
             prefix = "small_"
         else:
             prefix = "large_"
-        # Default run of small, 0.8 stochasticity, discount = 0.9
+        #Default run of small, 0.8 stochasticity, discount = 0.9
+        print_spaces()
+        print("Generating Maze")
+        reward_grid, terminal_mask, goal_mask, avoid_mask, obstacle_mask = generate_maze(i)
+
         gw = GridWorldMDP(reward_grid=reward_grid,
                           obstacle_mask=obstacle_mask,
                           terminal_mask=terminal_mask,
@@ -207,30 +208,122 @@ if __name__ == '__main__':
 
 
 
+        print_spaces()
+        print("Generating Maze")
+        reward_grid, terminal_mask, goal_mask, avoid_mask, obstacle_mask = generate_maze(oldi)
 
-        # ql = QLearner(num_states=(shape[0] * shape[1]),
-        #               num_actions=4,
-        #               learning_rate=0.8,
-        #               discount_rate=0.9,
-        #               random_action_prob=0.5,
-        #               random_action_decay_rate=0.99,
-        #               dyna_iterations=0)
-        #
-        # start_state = gw.grid_coordinates_to_indices(start)
-        #
-        # iterations = 1000
-        # flat_policies, flat_utilities = ql.learn(start_state,
-        #                                          gw.generate_experience,
-        #                                          iterations=iterations)
-        # start = (-1, 0)
-        # new_shape = (gw.shape[0], gw.shape[1], iterations)
-        # ql_utility_grids = flat_utilities.reshape(new_shape)
-        # ql_policy_grids = flat_policies.reshape(new_shape)
-        # print('Final result of QLearning:')
-        # print(ql_policy_grids[:, :, -1])
-        # print(ql_utility_grids[:, :, -1])
-        #
-        # plt.figure()
-        # gw.plot_policy(ql_utility_grids[:, :, -1], ql_policy_grids[:, :, -1])
-        # plot_convergence(ql_utility_grids, ql_policy_grids)
-        # plt.show()
+        gw = GridWorldMDP(reward_grid=reward_grid,
+                          obstacle_mask=obstacle_mask,
+                          terminal_mask=terminal_mask,
+                          action_probabilities=[
+                              (-1, 0.1),
+                              (0, 0.8),
+                              (1, 0.1),
+                          ],
+                          no_action_probability=0.0,
+                          goal_mask=goal_mask,
+                          avoid_mask=avoid_mask)
+
+
+        ql = QLearner(num_states=(reward_grid.shape[0] * reward_grid.shape[1]),
+                      num_actions=4,
+                      learning_rate=0.7,
+                      discount_rate=0.9,
+                      random_action_prob=0.2,
+                      random_action_decay_rate=0.99,
+                      dyna_iterations=0)
+
+        start = (reward_grid.shape[0]-1, 0)
+        start_state = gw.grid_coordinates_to_indices(start)
+
+        iterations = 6000
+        flat_policies, flat_utilities = ql.learn(start_state,
+                                                 gw.generate_experience,
+                                                 iterations=iterations)
+        new_shape = (gw.shape[0], gw.shape[1], iterations)
+        ql_utility_grids = flat_utilities.reshape(new_shape)
+        ql_policy_grids = flat_policies.reshape(new_shape)
+        #print('Final result of QLearning:')
+        #print(ql_policy_grids[:, :, -1])
+        #print(ql_utility_grids[:, :, -1])
+
+        plt.figure()
+        gw.plot_policy(ql_utility_grids[:, :, -1], ql_policy_grids[:, :, -1])
+        plot_convergence(ql_utility_grids, ql_policy_grids)
+        plt.show()
+
+        times = []
+        randoms = []
+        for j in range(5):
+            randomness = round(j*0.2 + 0.1, 1)
+            randoms.append(randomness)
+            ql = QLearner(num_states=(reward_grid.shape[0] * reward_grid.shape[1]),
+                          num_actions=4,
+                          learning_rate=0.7,
+                          discount_rate=0.9,
+                          random_action_prob=randomness,
+                          random_action_decay_rate=0.99,
+                          dyna_iterations=0)
+            start = (reward_grid.shape[0] - 1, 0)
+            start_state = gw.grid_coordinates_to_indices(start)
+
+            iterations = 6000
+            now = time.time()
+            flat_policies, flat_utilities = ql.learn(start_state,
+                                                     gw.generate_experience,
+                                                     iterations=iterations)
+            time_taken = (time.time() - now) * 1000
+            times.append(time_taken)
+            new_shape = (gw.shape[0], gw.shape[1], iterations)
+            ql_utility_grids = flat_utilities.reshape(new_shape)
+            ql_policy_grids = flat_policies.reshape(new_shape)
+            fig = plt.figure()
+            plt.title("Q-Learning Policy for Randomness {}".format(randomness))
+            gw.plot_policy(ql_utility_grids[:, :, -1], ql_policy_grids[:, :, -1])
+            plt.savefig("../figures/{}{}{}.png".format(prefix, 'q_randomness_', randomness*10))
+            plt.close(fig)
+        fig = plt.figure()
+        plt.title("Time taken (ms) for varying randomness")
+        plt.xlabel("Randomness")
+        plt.ylabel("Time (ms)")
+        plt.plot(randoms, times, 'b.-', color='b')
+        plt.savefig("../figures/{}{}.png".format(prefix, 'q_time_randomness'))
+        plt.close(fig)
+
+        times = []
+        learning_rates = []
+        for j in range(5):
+            learning_rate = round(j * 0.2 + 0.1, 1)
+            learning_rates.append(learning_rate)
+            ql = QLearner(num_states=(reward_grid.shape[0] * reward_grid.shape[1]),
+                          num_actions=4,
+                          learning_rate=learning_rate,
+                          discount_rate=0.9,
+                          random_action_prob=0.2,
+                          random_action_decay_rate=0.99,
+                          dyna_iterations=0)
+            start = (reward_grid.shape[0] - 1, 0)
+            start_state = gw.grid_coordinates_to_indices(start)
+
+            iterations = 6000
+            now = time.time()
+            flat_policies, flat_utilities = ql.learn(start_state,
+                                                     gw.generate_experience,
+                                                     iterations=iterations)
+            time_taken = (time.time() - now) * 1000
+            times.append(time_taken)
+            new_shape = (gw.shape[0], gw.shape[1], iterations)
+            ql_utility_grids = flat_utilities.reshape(new_shape)
+            ql_policy_grids = flat_policies.reshape(new_shape)
+            fig = plt.figure()
+            plt.title("Q-Learning Policy for Learning Rate {}".format(learning_rate))
+            gw.plot_policy(ql_utility_grids[:, :, -1], ql_policy_grids[:, :, -1])
+            plt.savefig("../figures/{}{}{}.png".format(prefix, 'q_lr_', learning_rate * 10))
+            plt.close(fig)
+        fig = plt.figure()
+        plt.title("Time taken (ms) for varying learning rates")
+        plt.xlabel("Learning Rates")
+        plt.ylabel("Time (ms)")
+        plt.plot(learning_rates, times, 'b.-', color='b')
+        plt.savefig("../figures/{}{}.png".format(prefix, 'q_lr_randomness'))
+        plt.close(fig)
